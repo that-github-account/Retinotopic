@@ -27,7 +27,8 @@
     //self.paragraph = document.getElementById("testing");
     //paragraph.innerHTML = self.adjective;
 
-    var canvas = document.getElementById("canvas");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
 
     //internal canvas resolution
     var canvas_width = canvas.width;
@@ -55,7 +56,7 @@
     var circle_xpos_window = canvas_width/2;
     var circle_ypos_window = canvas_height/2;
 
-    var circle_size = 20;
+    var circle_size = 10;
     var circle_colour = "#808080";
 
     var fixation_size = 40;
@@ -64,6 +65,8 @@
     //development functions (check all false when running experiment)
 
     const assist_centre = false;
+    const assist_grid = false;
+    const assist_text = true;
 
     function onShow() { //define variables here
 
@@ -77,23 +80,44 @@
 
     };
 
-    this.drawScene = function() { //play the animation here
-
-        
+    this.drawScene = function() { //play the animation here   
+        ctx.clearRect(0, 0, canvas.width, canvas.height);     
 
         this.objects.draw(canvas);
         this.objects.movecircle1tocentre();
 
 
-
         //leave as is
 
         if (assist_centre == true) {
-        var ctx = canvas.getContext("2d");
-        ctx.beginPath();
-        ctx.fillStyle = "#000000";
-        ctx.arc(canvas.width/2, canvas.height/2, 10, 0, 2 * Math.PI);
-        ctx.fill();
+            ctx.beginPath();
+            ctx.fillStyle = "#000000";
+            ctx.arc(canvas.width/2, canvas.height/2, 10, 0, 2 * Math.PI);
+            ctx.fill();
+        };
+
+        if(assist_grid == true) {
+            ctx.beginPath();
+            ctx.fillStyle = "green";
+            ctx.arc(objects.startx, objects.starty, 10, 0, 2 * Math.PI);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.fillStyle = "#ff0000";
+            ctx.arc(objects.centrex, objects.centrey, 10, 0, 2 * Math.PI);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.fillStyle = "orange";
+            ctx.arc(objects.endx, objects.endy, 10, 0, 2 * Math.PI);
+            ctx.fill();
+        };
+
+        if(assist_text == true) {
+            ctx.fillStyle = "green";
+            ctx.fillText("1", objects.circle1x, objects.circle1y);
+            ctx.fillStyle = "orange";
+            ctx.fillText("2", objects.circle2x, objects.circle2y);
         };
 
         window.requestAnimationFrame(this.drawScene)
@@ -109,8 +133,9 @@
         this.colour = colour;
 
         this.distance = 50;
-        this.radian = 0;
-        this.overlap = 1;
+        this.angle = 45;
+        this.radian = this.angle*(Math.PI/180);
+        this.overlap = 0;
 
         this.centrex = this.xpos;
         this.centrey = this.ypos;
@@ -119,17 +144,15 @@
         this.starty = this.centrey + Math.sin(this.radian)*this.distance;
 
         this.endx = this.centrex + Math.cos(this.radian)*this.distance;
-        this.endy = this.centrey - Math.sign(this.radian)*this.distance;
+        this.endy = this.centrey - Math.sin(this.radian)*this.distance;
 
-        this.circle1x = this.startx - Math.cos(this.radian)*this.size;
-        this.circle1y = this.starty + Math.sin(this.radian)*this.size;
+        this.circle1x = this.startx;
+        this.circle1y = this.starty;
 
-        this.circle2x = this.centrex - Math.cos(this.radian)*((this.size)*(this.overlap)); 
-        this.circle2y = this.centrey + Math.sin(this.radian)*((this.size)*(this.overlap));
+        this.circle2x = this.centrex - Math.cos(this.radian)*(this.overlap); 
+        this.circle2y = this.centrey + Math.sin(this.radian)*(this.overlap);
         
         this.draw = function(canvas) {
-            var ctx = canvas.getContext("2d");
-
             ctx.beginPath();
             ctx.fillStyle = this.colour;
             ctx.arc(this.circle1x, this.circle1y, this.size, 0, 2 * Math.PI);
@@ -145,15 +168,35 @@
 
             var speed = 1
 
-            var distanceX = Math.abs(this.circle1x - (this.centrex - Math.cos(this.radian)*((this.size))))
-            var distanceY = Math.abs(this.circle1y - (this.centrey + Math.sin(this.radian)*((this.size))))
+            var distanceX = Math.abs(this.circle1x - this.centrex);
+            var distanceY = Math.abs(this.circle1y - this.centrey);
 
-            if (distanceX > 0) {
+            if (distanceX > 0.1 || distanceY > 0.1) {
                 this.circle1x = this.circle1x + Math.cos(this.radian)*speed;
                 this.circle1y = this.circle1y - Math.sin(this.radian)*speed;    
-            }
-            
+            };
 
+            console.log(this.circle1x, this.circle1y, "centre", this.centrex, this.centrey)
+        };
+
+        this.movecircle2toend = function() {
+
+            var speed = 1
+
+            var distanceX = Math.abs(this.circle2x - this.endx)
+            var overX = this.size*Math.abs(Math.cos(this.radian))*(this.overlap)
+            var distanceY = Math.abs(this.circle2y - this.endy) 
+            var overY = this.size*Math.abs(Math.sin(this.radian))*(this.overlap)
+            console.log(distanceX, distanceY)
+            if(distanceX > (0 + overX) || distanceY > (0 + overY)) {
+                this.circle2x = this.circle2x + Math.cos(this.radian)*speed;
+                this.circle2y = this.circle2y - Math.sin(this.radian)*speed;
+            };
+        };
+
+        this.playanimation = function() {
+            this.movecircle1tocentre();
+            this.movecircle2toend();
         }
     };
 
