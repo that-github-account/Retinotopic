@@ -84,7 +84,9 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);     
 
         this.objects.draw(canvas);
-        this.objects.movecircle1tocentre();
+        this.objects.playanimation();
+
+        console.log(this.objects.phase)
 
 
         //leave as is
@@ -133,9 +135,11 @@
         this.colour = colour;
 
         this.distance = 50;
-        this.angle = 45;
+        this.angle = 0;
         this.radian = this.angle*(Math.PI/180);
         this.overlap = 0;
+
+        this.phase = "start";
 
         this.centrex = this.xpos;
         this.centrey = this.ypos;
@@ -174,9 +178,9 @@
             if (distanceX > 0.1 || distanceY > 0.1) {
                 this.circle1x = this.circle1x + Math.cos(this.radian)*speed;
                 this.circle1y = this.circle1y - Math.sin(this.radian)*speed;    
+            } else {
+                this.phase = "centre";
             };
-
-            console.log(this.circle1x, this.circle1y, "centre", this.centrex, this.centrey)
         };
 
         this.movecircle2toend = function() {
@@ -187,17 +191,23 @@
             var overX = this.size*Math.abs(Math.cos(this.radian))*(this.overlap)
             var distanceY = Math.abs(this.circle2y - this.endy) 
             var overY = this.size*Math.abs(Math.sin(this.radian))*(this.overlap)
-            console.log(distanceX, distanceY)
             if(distanceX > (0 + overX) || distanceY > (0 + overY)) {
                 this.circle2x = this.circle2x + Math.cos(this.radian)*speed;
                 this.circle2y = this.circle2y - Math.sin(this.radian)*speed;
+            } else {
+                this.phase = "end";
             };
         };
 
         this.playanimation = function() {
-            this.movecircle1tocentre();
-            this.movecircle2toend();
-        }
+            
+            if(this.phase == "start") {
+                this.movecircle1tocentre();
+            };
+            if(this.phase == "centre") {
+                this.movecircle2toend();
+            };
+        };
     };
 
     function FixationCross(xpos, ypos, size, colour) {
