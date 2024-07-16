@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Collison Animation</title>
+    <style>
+        canvas {
+            padding: 0;
+            margin: auto;
+            display: block;
+        };
+    </style>
+</head>
+
+<body onload="onShow()">
+    <canvas id="canvas" width="1000" height="500" style="background-color: grey;"></canvas>
+
+    <p id="testing"> This is is before. </p>
+
+<script>
+    //self.adjective = Math.random()>0.5 ? "test" : "notest";
+    //self.paragraph = document.getElementById("testing");
+    //paragraph.innerHTML = self.adjective;
+
+    console.log(window.innerWidth, window.innerHeight)
+
+    var canvas = document.getElementById("canvas");
+    var canvas_width = canvas.width;
+    var canvas_height = canvas.height;
+
+    var window_width = window.innerWidth;
+    var window_height = window.innerHeight;
+
+    var fixation_location = "left";
+    var fixation_offset = 0;
+
+    let fixation_xpos;
+    if (fixation_location == "left") {
+        fixation_xpos = (canvas.width/2) - fixation_offset;
+    } else {
+        fixation_xpos = (canvas.width/2) + fixation_offset;
+    };
+
+    var circle_xpos_window = canvas_width/2;
+    var circle_ypos_window = canvas_height/2;
+
+    console.log(canvas.getBoundingClientRect().width);
+    console.log(canvas.getBoundingClientRect().height);
+
+
+    var circle_xpos = 100;
+    var circle_ypos = 100;
+    var circle_distance = 50;
+    var circle_colour = "#000000";
+
+    var fixation_colour = "#ff0000";
+
+    const assist_centre = false;
+
+    function onShow() { //define variables here
+
+        const Circle1 = new CollisionCircles(circle_xpos_window, circle_ypos_window, circle_distance, circle_colour);
+        const FixationCross1 = new FixationCross(fixation_xpos, canvas_height/2, 40, fixation_colour);
+
+        
+        this.objects = Circle1;
+        this.FixationCross = FixationCross1;
+        window.requestAnimationFrame(this.drawScene);
+
+    };
+
+    this.drawScene = function() { //play the animation here
+
+        
+
+        this.FixationCross.draw(canvas);
+
+
+
+
+        //leave as is
+
+        if (assist_centre == true) {
+        var ctx = canvas.getContext("2d");
+        ctx.beginPath();
+        ctx.fillStyle = "#000000";
+        ctx.arc(canvas.width/2, canvas.height/2, 10, 0, 2 * Math.PI);
+        ctx.fill();
+        };
+
+        window.requestAnimationFrame(this.drawScene)
+
+    }
+
+    //add functions below
+
+    function CollisionCircles(XPos, YPos, size, colour) {
+        this.XPos = XPos;
+        this.YPos = YPos;
+        this.size = size;
+        this.colour = colour;
+        
+        this.draw = function(canvas) {
+            var ctx = canvas.getContext("2d");
+
+            ctx.beginPath();
+            ctx.fillStyle = this.colour;
+            ctx.arc(this.XPos, this.YPos, this.size, 0, 2 * Math.PI);
+            ctx.fill();
+        };
+
+        this.move = function(stepsize) {
+            this.XPos = this.XPos + 1;
+
+        }
+    };
+
+    function FixationCross(xpos, ypos, size, colour) {
+        this.xpos = xpos;
+        this.ypos = ypos;
+        this.size = size;
+        this.colour = colour;
+
+        this.rec1sizex = this.size;
+        this.rec1sizey = this.size/4;
+        this.rec1x = this.xpos - this.rec1sizex/2;
+        this.rec1y = this.ypos - this.rec1sizey/2;
+
+        this.rec2sizex = this.size/4;
+        this.rec2sizey = this.size;
+        this.rec2x = this.xpos - this.rec2sizex/2;
+        this.rec2y = this.ypos - this.rec2sizey/2;
+
+        this.draw = function(canvas) {
+            var ctx = canvas.getContext("2d");
+
+            ctx.fillStyle = this.colour;
+            ctx.fillRect(this.rec1x, this.rec1y, this.rec1sizex, this.rec1sizey);
+            ctx.fillRect(this.rec2x, this.rec2y, this.rec2sizex, this.rec2sizey);
+        };
+    };
+</script>
+</body>
+</html>
