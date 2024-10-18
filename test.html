@@ -37,24 +37,9 @@
     var window_centrex = window_width/2;
     var window_centrey = window_height/2;
 
-    // fixation cross 
-    if (Math.floor(Math.random() * 2) == 0) {
-        var initial_fixation_location = "left"        
-    } else {
-        var initial_fixation_location = "right"
-    };
 
-    var fixation_location = initial_fixation_location;
-    var fixation_offset = 0; // probably something in visual degrees, degrees away from centre
 
-    let fixation_xpos;
-    if (fixation_location == "left") {
-        fixation_xpos = (canvas_centrex) - fixation_offset;
-    } else {
-        fixation_xpos = (canvas_centrex) + fixation_offset;
-    };
-
-    var fixation_ypos = canvas_centrey;
+    // circles 
 
     var circle_xpos_window = canvas_width/2;
     var circle_ypos_window = canvas_height/2;
@@ -64,6 +49,47 @@
 
     var fixation_size = 40;
     var fixation_colour = "#ff0000";
+
+    // everything visual degrees 
+
+    const circle_size_vs = 1.5 // size in visual degrees
+    const fixation_offset_vs = 5 // visual degrees from centre
+
+    const distance_from_screen = 60 // distance from screen in cm
+
+    const screen_vs_ratio_horizontal = 1920/509.76 // ratio of pixels per mm, depends on screen, needs to be checked manually 
+    const screen_vs_ratio_vertical = 1080/286.74 // ratio of pixels per mm
+
+    const circle_size_radians = (circle_size_vs)*(Math.PI/180) // converting vs to radians
+    const fixation_offset_radians = (fixation_offset_vs)*(Math.PI/180) // converting the vs into radians because code does not like degrees
+
+    const circle_screen_size = Math.tan(circle_size_radians)*distance_from_screen*10 // actual circle size in mm
+    const fixation_offset_screen_size = Math.tan(fixation_offset_radians)*distance_from_screen*10 // actual fixation cross offset in mm
+
+    const circle_size_in_pixel = Math.round(circle_screen_size*screen_vs_ratio_horizontal, 2) // note that the disc needs to be defined along the X and Y axis but as we are displaying a circle both ratios would return the same size
+    const fixation_offset_in_pixel = Math.round(fixation_offset_screen_size*screen_vs_ratio_horizontal, 2)
+ 
+    var circle_size = circle_size_in_pixel
+    var fixation_offset = fixation_offset_in_pixel
+
+    // fixation cross 
+    if (Math.floor(Math.random() * 2) == 0) {
+        var initial_fixation_location = "left"        
+    } else {
+        var initial_fixation_location = "right"
+    };
+
+    var fixation_location = initial_fixation_location;
+    
+    let fixation_xpos;
+    if (fixation_location == "left") {
+        fixation_xpos = (canvas_centrex) - fixation_offset;
+    } else {
+        fixation_xpos = (canvas_centrex) + fixation_offset;
+    };
+
+    var fixation_ypos = canvas_centrey;
+
 
     //development functions (check all false when running experiment) -------------------------------------------------
 
