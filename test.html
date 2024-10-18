@@ -15,24 +15,20 @@
 <body onload="onShow()">
     <canvas id="canvas" width="1000" height="500" style="background-color: black;"></canvas>
 
-    <p id="testing"> This is is before. </p>
-
 <script>
-
-    //some settings
-
-
-
-    //self.adjective = Math.random()>0.5 ? "test" : "notest";
-    //self.paragraph = document.getElementById("testing");
-    //paragraph.innerHTML = self.adjective;
 
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
 
+    canvas.width = window.innerWidth - 100;
+    canvas.height = window.innerHeight- 100;
+
     //internal canvas resolution
     var canvas_width = canvas.width;
     var canvas_height = canvas.height;
+
+    var canvas_centrex = canvas_width/2;
+    var canvas_centrey = canvas_height/2;
 
     //window size (excluding toolbar etc.)
     var window_width = window.innerWidth;
@@ -41,55 +37,60 @@
     var window_centrex = window_width/2;
     var window_centrey = window_height/2;
 
-    var fixation_location = "left";
-    var fixation_offset = 0;
+    // fixation cross 
+    if (Math.floor(Math.random() * 2) == 0) {
+        var initial_fixation_location = "left"        
+    } else {
+        var initial_fixation_location = "right"
+    };
+
+    var fixation_location = initial_fixation_location;
+    var fixation_offset = 0; // probably something in visual degrees, degrees away from centre
 
     let fixation_xpos;
     if (fixation_location == "left") {
-        fixation_xpos = (canvas.width/2) - fixation_offset;
+        fixation_xpos = (canvas_centrex) - fixation_offset;
     } else {
-        fixation_xpos = (canvas.width/2) + fixation_offset;
+        fixation_xpos = (canvas_centrex) + fixation_offset;
     };
 
-    var fixation_ypos = window_centrey;
+    var fixation_ypos = canvas_centrey;
 
     var circle_xpos_window = canvas_width/2;
     var circle_ypos_window = canvas_height/2;
 
-    var circle_size = 10;
+    var circle_size = 20;
     var circle_colour = "#808080";
 
     var fixation_size = 40;
     var fixation_colour = "#ff0000";
 
-    //development functions (check all false when running experiment)
+    //development functions (check all false when running experiment) -------------------------------------------------
 
     const assist_centre = false;
     const assist_grid = false;
-    const assist_text = true;
+    const assist_text = false;
+
+    //-----------------------------------------------------------------------------------------------------------------
 
     function onShow() { //define variables here
 
-        const Circle1 = new CollisionCircles(circle_xpos_window, circle_ypos_window, circle_size, circle_colour);
+        const Circles = new CollisionCircles(circle_xpos_window, circle_ypos_window, circle_size, circle_colour);
         const FixationCross1 = new FixationCross(fixation_xpos, fixation_ypos, fixation_size, fixation_colour);
 
         
-        this.objects = Circle1;
+        this.objects = Circles;
         this.FixationCross = FixationCross1;
         window.requestAnimationFrame(this.drawScene);
-
     };
 
     this.drawScene = function() { //play the animation here   
         ctx.clearRect(0, 0, canvas.width, canvas.height);     
 
-        this.objects.draw(canvas);
-        this.objects.playanimation();
-
-        console.log(this.objects.phase)
+        this.FixationCross.draw(canvas);
 
 
-        //leave as is
+        // development functions (leave as is) ---------------------------------------------------------------------
 
         if (assist_centre == true) {
             ctx.beginPath();
@@ -126,17 +127,19 @@
 
     }
 
-    //add functions below
+    //add functions below ---------------------------------------------------------------------------------
 
     function CollisionCircles(xpos, ypos, size, colour) {
-        this.xpos = xpos;
+        this.xpos = xpos; //should be relative to fixation cross
         this.ypos = ypos;
         this.size = size;
         this.colour = colour;
 
-        this.distance = 50;
-        this.angle = 0;
+        this.distance = 100; //should probably be based on visual degrees
+
+        this.angle = 0; 
         this.radian = this.angle*(Math.PI/180);
+
         this.overlap = 0;
 
         this.phase = "start";
@@ -153,7 +156,7 @@
         this.circle1x = this.startx;
         this.circle1y = this.starty;
 
-        this.circle2x = this.centrex - Math.cos(this.radian)*(this.overlap); 
+        this.circle2x = this.centrex - Math.cos(this.radian)*(this.overlap); //multiply by size of the circle
         this.circle2y = this.centrey + Math.sin(this.radian)*(this.overlap);
         
         this.draw = function(canvas) {
@@ -163,7 +166,7 @@
             ctx.fill();
 
             ctx.beginPath();
-            ctx.fillStyle = "blue";
+            ctx.fillStyle = this.colour;
             ctx.arc(this.circle2x, this.circle2y, this.size, 0, 2 * Math.PI);
             ctx.fill();
         };
@@ -191,12 +194,38 @@
             var overX = this.size*Math.abs(Math.cos(this.radian))*(this.overlap)
             var distanceY = Math.abs(this.circle2y - this.endy) 
             var overY = this.size*Math.abs(Math.sin(this.radian))*(this.overlap)
-            if(distanceX > (0 + overX) || distanceY > (0 + overY)) {
+
+            if(distanceX > (0.1 + overX) || distanceY > (0.1 + overY)) {
                 this.circle2x = this.circle2x + Math.cos(this.radian)*speed;
                 this.circle2y = this.circle2y - Math.sin(this.radian)*speed;
             } else {
                 this.phase = "end";
             };
+        };
+
+        this.reset = function(new_angle, new_overlap) {
+
+            this.angle = new_angle; 
+            this.radian = this.angle*(Math.PI/180);
+
+            this.overlap = new_overlap;
+
+            this.centrex = this.xpos; //might not need to change
+            this.centrey = this.ypos;
+
+            this.startx = this.centrex - Math.cos(this.radian)*this.distance;
+            this.starty = this.centrey + Math.sin(this.radian)*this.distance;
+
+            this.endx = this.centrex + Math.cos(this.radian)*this.distance;
+            this.endy = this.centrey - Math.sin(this.radian)*this.distance;
+
+            this.circle1x = this.startx;
+            this.circle1y = this.starty;
+
+            this.circle2x = this.centrex - Math.cos(this.radian)*(this.overlap); //multiply by size of the circle
+            this.circle2y = this.centrey + Math.sin(this.radian)*(this.overlap);
+
+            this.phase = "start";
         };
 
         this.playanimation = function() {
@@ -206,6 +235,9 @@
             };
             if(this.phase == "centre") {
                 this.movecircle2toend();
+            };
+            if(this.phase == "end") {
+                this.reset(0, 0);
             };
         };
     };
@@ -227,8 +259,6 @@
         this.rec2y = this.ypos - this.rec2sizey/2;
 
         this.draw = function(canvas) {
-            var ctx = canvas.getContext("2d");
-
             ctx.fillStyle = this.colour;
             ctx.fillRect(this.rec1x, this.rec1y, this.rec1sizex, this.rec1sizey);
             ctx.fillRect(this.rec2x, this.rec2y, this.rec2sizex, this.rec2sizey);
