@@ -20,39 +20,38 @@
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
 
-    canvas.width = window.innerWidth - 100;
-    canvas.height = window.innerHeight- 100;
+    canvas.width = window.innerWidth; // set the canvas to span the size of the inner bowser window
+    canvas.height = window.innerHeight;
 
     //internal canvas resolution
-    var canvas_width = canvas.width;
-    var canvas_height = canvas.height;
+    const canvas_width = canvas.width; // get canvas resolution as constant variable 
+    const canvas_height = canvas.height;
 
-    var canvas_centrex = canvas_width/2;
-    var canvas_centrey = canvas_height/2;
+    const canvas_centrex = canvas_width/2;
+    const canvas_centrey = canvas_height/2;
 
     //window size (excluding toolbar etc.)
-    var window_width = window.innerWidth;
-    var window_height = window.innerHeight;
+    const window_width = window.innerWidth; // get window size as constant variable, though better to refer to canvas resolution
+    const window_height = window.innerHeight;
 
-    var window_centrex = window_width/2;
-    var window_centrey = window_height/2;
-
-
+    const window_centrex = window_width/2;
+    const window_centrey = window_height/2;
 
     // circles 
-
     var circle_xpos_window = canvas_width/2;
     var circle_ypos_window = canvas_height/2;
 
-    var circle_size = 20;
+    var circle_size = 20; // this is probably deprecated, will remove soon, adjust size as visual degrees if necessary
     var circle_colour = "#808080";
+    // var circle_speed = 1; currently undefined
 
-    var fixation_size = 40;
+    var fixation_size = 40; // define youself as visual degrees are not given in previous publications  
     var fixation_colour = "#ff0000";
+    var fixation_cross_speed = 5; 
 
     // everything visual degrees 
 
-    const circle_size_vs = 1.5 // size in visual degrees
+    const circle_size_vs = 1.5 // size of circles in visual degrees
     const fixation_offset_vs = 5 // visual degrees from centre
 
     const distance_from_screen = 60 // distance from screen in cm
@@ -69,11 +68,11 @@
     const circle_size_in_pixel = Math.round(circle_screen_size*screen_vs_ratio_horizontal, 2) // note that the disc needs to be defined along the X and Y axis but as we are displaying a circle both ratios would return the same size
     const fixation_offset_in_pixel = Math.round(fixation_offset_screen_size*screen_vs_ratio_horizontal, 2)
  
-    var circle_size = circle_size_in_pixel
+    var circle_size = circle_size_in_pixel/2 // as JS uses radius but we want it be the diameter
     var fixation_offset = fixation_offset_in_pixel
 
     // fixation cross 
-    if (Math.floor(Math.random() * 2) == 0) {
+    if (Math.floor(Math.random() * 2) == 0) { // randomise initial fixation location
         var initial_fixation_location = "left"        
     } else {
         var initial_fixation_location = "right"
@@ -90,19 +89,20 @@
 
     var fixation_ypos = canvas_centrey;
 
+    var phase = "instructions";
 
     //development functions (check all false when running experiment) -------------------------------------------------
 
-    const assist_centre = false;
-    const assist_grid = false;
-    const assist_text = false;
+    const assist_centre = false; // shows where the centre is
+    const assist_grid = false; // shows a grid of the points between which the circles should move
+    const assist_text = false; // labels the circles to be able to better differentiate them
 
     //-----------------------------------------------------------------------------------------------------------------
 
     function onShow() { //define variables here
 
         const Circles = new CollisionCircles(circle_xpos_window, circle_ypos_window, circle_size, circle_colour);
-        const FixationCross1 = new FixationCross(fixation_xpos, fixation_ypos, fixation_size, fixation_colour);
+        const FixationCross1 = new FixationCross(fixation_xpos, fixation_ypos, fixation_size, fixation_colour); // think about adding speed here
 
         
         this.objects = Circles;
@@ -111,10 +111,26 @@
     };
 
     this.drawScene = function() { //play the animation here   
-        ctx.clearRect(0, 0, canvas.width, canvas.height);     
+        ctx.clearRect(0, 0, canvas.width, canvas.height); 
 
-        this.FixationCross.draw(canvas);
+        if(phase == "instructions") {
+            main_instructions()
 
+            onkeydown = function() {
+                if (event.key === " ") {
+                    console.log("yes")
+                    phase = "training"
+                }
+            };
+        };
+
+        if (phase == "training") {
+            this.FixationCross.draw(canvas)
+
+            
+        };
+
+        
 
         // development functions (leave as is) ---------------------------------------------------------------------
 
@@ -151,9 +167,9 @@
 
         window.requestAnimationFrame(this.drawScene)
 
-    }
+    };
 
-    //add functions below ---------------------------------------------------------------------------------
+    // Functions below ---------------------------------------------------------------------------------
 
     function CollisionCircles(xpos, ypos, size, colour) {
         this.xpos = xpos; //should be relative to fixation cross
@@ -274,22 +290,78 @@
         this.size = size;
         this.colour = colour;
 
-        this.rec1sizex = this.size;
-        this.rec1sizey = this.size/4;
-        this.rec1x = this.xpos - this.rec1sizex/2;
-        this.rec1y = this.ypos - this.rec1sizey/2;
+        this.xpos_left = canvas_centrex - fixation_offset;
+        this.xpos_right = canvas_centrex + fixation_offset;
 
+        this.rec1sizex = this.size; // defines the sizes, needs to be done via two rectangles, hence they have mirrored dimensions
+        this.rec1sizey = this.size/4;
         this.rec2sizex = this.size/4;
         this.rec2sizey = this.size;
-        this.rec2x = this.xpos - this.rec2sizex/2;
+
+        this.rec1x_left = this.xpos_left - this.rec1sizex/2; // pre-define locations to change it easier later
+        this.rec1x_right = this.xpos_right - this.rec1sizex/2;
+        this.rec2x_left = this.xpos_left - this.rec2sizex/2;
+        this.rec2x_right = this.xpos_right - this.rec2sizex/2;
+
+        if (initial_fixation_location == "left") { //decide initial location based on randomised left/right appearance 
+            this.rec1x = this.rec1x_left;
+            this.rec2x = this.rec2x_left;
+        } else {
+            this.rec1x = this.rec1x_right;
+            this.rec2x = this.rec2x_right;
+        }
+
+        this.rec1y = this.ypos - this.rec1sizey/2; // in this version it never changes 
         this.rec2y = this.ypos - this.rec2sizey/2;
+
 
         this.draw = function(canvas) {
             ctx.fillStyle = this.colour;
             ctx.fillRect(this.rec1x, this.rec1y, this.rec1sizex, this.rec1sizey);
             ctx.fillRect(this.rec2x, this.rec2y, this.rec2sizex, this.rec2sizey);
         };
+
+        this.move = function(current_location, new_location, speed) {
+
+            var speed = speed; //at the moment in pixels
+            
+            if(new_location == "right") {
+                if(this.rec1x < this.rec1x_right) { // defined location here via rec1 but can also be defined via rec2, as they move simultaneously does not matter
+                    this.rec1x = this.rec1x + speed
+                    this.rec2x = this.rec2x + speed
+                } else {
+                this.rec1x = this.rec1x_right;
+                this.rec2x = this.rec2x_right;
+                }
+            }
+
+            if(new_location == "left") {
+                if(this.rec1x > this.rec1x_left) {
+                    this.rec1x = this.rec1x - speed
+                    this.rec2x = this.rec2x - speed
+                } else {
+                this.rec1x = this.rec1x_left;
+                this.rec2x = this.rec2x_left;
+                }
+            }
+        };
     };
+
+
+
+
+
+// all instructions go here ---------------------------------------------------------------------------------------------------------
+
+function main_instructions() {
+    ctx.font = '30px Arial';
+    ctx.fillStyle = "white";
+
+    // Draw filled text
+    ctx.fillText("test", canvas_centrex, canvas_centrey);
+
+    
+}
 </script>
 </body>
 </html>
