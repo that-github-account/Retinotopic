@@ -30,20 +30,13 @@
     const canvas_centrex = canvas_width/2;
     const canvas_centrey = canvas_height/2;
 
-    //window size (excluding toolbar etc.)
-    const window_width = window.innerWidth; // get window size as constant variable, though better to refer to canvas resolution
-    const window_height = window.innerHeight;
-
-    const window_centrex = window_width/2;
-    const window_centrey = window_height/2;
-
     // circles 
     var circle_xpos_window = canvas_width/2;
     var circle_ypos_window = canvas_height/2;
 
     var circle_size = 20; // this is probably deprecated, will remove soon, adjust size as visual degrees if necessary
     var circle_colour = "#808080";
-    // var circle_speed = 1; currently undefined
+    var circles_speed = 10;
     var circles_distance = 100; // just a random distance atm
 
     var fixation_size = 40; // define youself as visual degrees are not given in previous publications  
@@ -90,7 +83,8 @@
 
     var fixation_ypos = canvas_centrey;
 
-    var phase = "phase pre";
+    var phase = "test"; // set to start for real experiment
+    const trials_pre = 180;
 
     //development functions (check all false when running experiment) -------------------------------------------------
 
@@ -102,12 +96,13 @@
 
     function onShow() { //define variables here
 
-        const Circles = new CollisionCircles(canvas_centrex, canvas_centrey, circle_size, circle_colour, fixation_offset, circles_distance);
+        const Circles = new CollisionCircles(canvas_centrex, canvas_centrey, circle_size, circle_colour, fixation_offset, circles_distance, circles_speed);
         const FixationCross1 = new FixationCross(fixation_xpos, fixation_ypos, fixation_size, fixation_colour); // think about adding speed here
-
+        const Response1 = new ResponseRequest()
         
         this.objects = Circles;
         this.FixationCross = FixationCross1;
+        this.Response = Response1;
         window.requestAnimationFrame(this.drawScene);
     };
 
@@ -159,19 +154,28 @@
 
         if (phase == "phase pre") {
             
-            this.FixationCross.draw()
-
-            this.objects.position(this.FixationCross.xpos, 0, 0)
-            this.objects.draw()
-
-            
+            if (this.objects.trial_number < trials_pre + 1) { //need to add 1 so all animations are completed    
+                console.log(this.objects.trial_number) 
+                this.FixationCross.draw()
+                this.objects.draw()
+                this.objects.playanimation(this.FixationCross.xpos, 0, getRandomIntInclusive(0, 360)) // randomised at the moment for testing
+            };
         };
 
+        if (phase == "test") {
+
+            this.FixationCross.draw()
+            this.FixationCross.colour = "#0cff0c"
+            console.log(this.Response.response_list)
+
+            this.Response.awaitresponse("test")
+            
+        }
         
 
         // development functions (leave as is) ---------------------------------------------------------------------
 
-        if (assist_centre == true) { // might not show the centre perfectly as needs to account for radius/diameter affecting x/y, is only a rough guide
+        if(assist_centre == true) { // might not show the centre perfectly as needs to account for radius/diameter affecting x/y, is only a rough guide
             ctx.beginPath();
             ctx.fillStyle = "white";
             ctx.arc(canvas_centrex, canvas_centrey, 10, 0, 2 * Math.PI);
@@ -208,7 +212,7 @@
 
     // Functions below ---------------------------------------------------------------------------------
 
-    function CollisionCircles(xpos, ypos, size, colour, offset, distance) {
+    function CollisionCircles(xpos, ypos, size, colour, offset, distance, speed) {
         this.xpos = xpos; //should be relative to fixation cross
         this.ypos = ypos;
 
@@ -218,11 +222,16 @@
 
         this.distance = distance; //should probably be based on visual degrees
 
-        this.phase = "start";
+        this.speed = speed;
+
+        this.phase = "position";
+        this.repositioned = false;
+
+        this.trial_number = 0;
 
         this.position = function(fixationxpos, overlap, angle) {
             
-            this.angle = 0; 
+            this.angle = angle; 
             this.radian = this.angle*(Math.PI/180);
             this.overlap = overlap;
 
@@ -241,6 +250,11 @@
 
             this.circle2x = this.centrex - Math.cos(this.radian)*(this.overlap); //multiply by size of the circle
             this.circle2y = this.centrey + Math.sin(this.radian)*(this.overlap);
+
+            this.trial_number++;
+
+            this.repositioned = true;
+            this.phase = "start";
         };
         
         this.draw = function() {
@@ -257,14 +271,12 @@
 
         this.movecircle1tocentre = function() {
 
-            var speed = 1
-
             var distanceX = Math.abs(this.circle1x - this.centrex);
             var distanceY = Math.abs(this.circle1y - this.centrey);
 
             if (distanceX > 0.1 || distanceY > 0.1) {
-                this.circle1x = this.circle1x + Math.cos(this.radian)*speed;
-                this.circle1y = this.circle1y - Math.sin(this.radian)*speed;    
+                this.circle1x = this.circle1x + Math.cos(this.radian)*this.speed;
+                this.circle1y = this.circle1y - Math.sin(this.radian)*this.speed;    
             } else {
                 this.phase = "centre";
             };
@@ -272,48 +284,30 @@
 
         this.movecircle2toend = function() {
 
-            var speed = 1
-
             var distanceX = Math.abs(this.circle2x - this.endx)
             var overX = this.size*Math.abs(Math.cos(this.radian))*(this.overlap)
             var distanceY = Math.abs(this.circle2y - this.endy) 
             var overY = this.size*Math.abs(Math.sin(this.radian))*(this.overlap)
 
             if(distanceX > (0.1 + overX) || distanceY > (0.1 + overY)) {
-                this.circle2x = this.circle2x + Math.cos(this.radian)*speed;
-                this.circle2y = this.circle2y - Math.sin(this.radian)*speed;
+                this.circle2x = this.circle2x + Math.cos(this.radian)*this.speed;
+                this.circle2y = this.circle2y - Math.sin(this.radian)*this.speed;
             } else {
                 this.phase = "end";
             };
         };
 
-        this.reset = function(new_angle, new_overlap) {
-
-            this.angle = new_angle; 
-            this.radian = this.angle*(Math.PI/180);
-
-            this.overlap = new_overlap;
-
-            this.centrex = this.xpos; //might not need to change
-            this.centrey = this.ypos;
-
-            this.startx = this.centrex - Math.cos(this.radian)*this.distance;
-            this.starty = this.centrey + Math.sin(this.radian)*this.distance;
-
-            this.endx = this.centrex + Math.cos(this.radian)*this.distance;
-            this.endy = this.centrey - Math.sin(this.radian)*this.distance;
-
-            this.circle1x = this.startx;
-            this.circle1y = this.starty;
-
-            this.circle2x = this.centrex - Math.cos(this.radian)*(this.overlap); //multiply by size of the circle
-            this.circle2y = this.centrey + Math.sin(this.radian)*(this.overlap);
-
-            this.phase = "start";
+        this.reset = function() {
+            
+            this.respositioned = false;
+            this.phase = "position";
         };
 
-        this.playanimation = function() {
+        this.playanimation = function(fixationxpos, overlap, angle) {
             
+            if(this.phase == "position") {
+                this.position(fixationxpos, overlap, angle)
+            }
             if(this.phase == "start") {
                 this.movecircle1tocentre();
             };
@@ -321,7 +315,7 @@
                 this.movecircle2toend();
             };
             if(this.phase == "end") {
-                this.reset(0, 0);
+                this.reset();
             };
         };
     };
@@ -358,7 +352,6 @@
 
 
         this.draw = function(canvas) {
-            console.log(initial_fixation_location)
             ctx.fillStyle = this.colour;
             ctx.fillRect(this.rec1x, this.rec1y, this.rec1sizex, this.rec1sizey);
             ctx.fillRect(this.rec2x, this.rec2y, this.rec2sizex, this.rec2sizey);
@@ -390,6 +383,40 @@
         };
     };
 
+    function ResponseRequest() {
+        
+        this.text = "Please rate the event.";
+
+        this.xpos = canvas_centrex; // does not change as we want it centred
+        this.ypos = canvas_centrey - canvas_height*0.1; // adjusted to be slightly higher than the fixation cross to not obstruct the view
+
+        this.response_list = []
+
+        this.display = function() {
+            ctx.font = "30px Arial"; //currently uses the same font and colour as for instructions 
+            ctx.fillStyle = "white";
+
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            ctx.fillText(this.text, this.xpos, this.ypos);
+        };
+
+        this.awaitresponse = function(trial_parameters) {
+
+            this.display();
+
+            onkeydown = () => {
+                if(event.key === "d") {
+                    this.response_list.push("launch");
+                };
+                if (event.key === "k") {
+                    this.response_list.push("pass");
+                };
+        }
+        }
+
+    };
 
 
 
@@ -446,13 +473,10 @@ const wrapText = function(ctx, text, x, y, maxWidth, lineHeight) {
     return lineArray;
 };
 
-
-
-
 // note, might be worthwhile adding an option to specify whether text should be centred or starting from the top for when instructions are very long
 function instructions(txt) { 
     
-    var text = txt;
+    this.text = txt;
 
     ctx.font = text_font;
     ctx.fillStyle = text_colour;
@@ -461,7 +485,7 @@ function instructions(txt) {
     ctx.textBaseline = "middle";
 
     // we pass in ctx, text, x, y, maxWidth, lineHeight to wrapText()
-    let wrappedText = wrapText(ctx, text, canvas_centrex, canvas_centrey, canvas_width - text_padding, text_height);
+    let wrappedText = wrapText(ctx, this.text, canvas_centrex, canvas_centrey, canvas_width - text_padding, text_height);
 
     wrappedText.forEach(function(item) {
         // item[0] is the text
@@ -471,9 +495,9 @@ function instructions(txt) {
     });
 };
 
-function instructions_continue() {
+function instructions_continue() { // fixed instructions to display a continue message at the bottom of the screen
 
-    var text = "Press SPACE to continue.";
+    this.text = "Press SPACE to continue.";
 
     ctx.font = text_font;
     ctx.fillStyle = text_colour;
@@ -481,14 +505,14 @@ function instructions_continue() {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    ctx.fillText(text, canvas_centrex, canvas_height - text_padding);
-
-
+    ctx.fillText(this.text, canvas_centrex, canvas_height - text_padding);
 };
 
-
-
-
+function getRandomIntInclusive(min, max) {
+  const minCeiled = Math.ceil(min);
+  const maxFloored = Math.floor(max);
+  return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled);
+};
 
 </script>
 </body>
