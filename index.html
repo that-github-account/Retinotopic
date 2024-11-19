@@ -1,142 +1,549 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Collison Animation</title>
+    <style>
+        canvas {
+            padding: 0;
+            margin: auto;
+            display: block;
+        }
 
-	<!--https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Drawing_shapes-->
-
+        ;
+    </style>
 </head>
-<body onload="onShown()">
 
-     <canvas width="1000" height="500" style="border: 1px solid" id="canvas">
-	
+<body onload="onShow()">
+    <canvas id="canvas" width="1000" height="500" style="background-color: black;"></canvas>
 
- <script>
-        var self = this;
-        self.adjective = Math.random()>0.5 ? 'test' : "nottest";
-        self.scale = 0;
+    <script>
 
-        self.someFunction = function(arg1, arg2){
-            self.scale = 80;
-        }
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
 
+        canvas.width = window.innerWidth; // set the canvas to span the size of the inner bowser window
+        canvas.height = window.innerHeight;
 
-        //predefined functions
-        function onShown() {
-            self.canvas = document.getElementById("canvas");
-			
-			var sq1 = new Square("sq1", "red", [20,30], [10,10], [100,100], 400 )		
-			
-			var sq2 = new Square("sq2", "blue", [20,30], [20,10], [150,100], 400)
-			self.objects = [sq1, sq2]
-			
-			
-			 window.requestAnimationFrame(self.drawScene); //start the animation
+        //internal canvas resolution
+        const canvas_width = canvas.width; // get canvas resolution as constant variable 
+        const canvas_height = canvas.height;
 
-			//console.log(self.results())
-        }
-        self.onHidden = function(){
-        }
-        self.results = function () {
-            return  {"resultA": "someRes", "resultB": "someRes2", scale: self.scale};
+        const canvas_centrex = canvas_width / 2;
+        const canvas_centrey = canvas_height / 2;
+
+        // circles 
+        var circle_xpos_window = canvas_width / 2;
+        var circle_ypos_window = canvas_height / 2;
+
+        var circle_size = 20; // this is probably deprecated, will remove soon, adjust size as visual degrees if necessary
+        var circle_colour = "#808080";
+        var circles_speed = 5;
+        var circles_distance = 100; // just a random distance atm
+
+        var fixation_size = 40; // define youself as visual degrees are not given in previous publications  
+        var fixation_colour = "#ff0000";
+        var fixation_cross_speed = 5;
+
+        // everything visual degrees 
+
+        const circle_size_vs = 1.5 // size of circles in visual degrees
+        const fixation_offset_vs = 5 // visual degrees from centre
+
+        const distance_from_screen = 60 // distance from screen in cm
+
+        const screen_vs_ratio_horizontal = 1920 / 509.76 // ratio of pixels per mm, depends on screen, needs to be checked manually 
+        const screen_vs_ratio_vertical = 1080 / 286.74 // ratio of pixels per mm
+
+        const circle_size_radians = (circle_size_vs) * (Math.PI / 180) // converting vs to radians
+        const fixation_offset_radians = (fixation_offset_vs) * (Math.PI / 180) // converting the vs into radians because code does not like degrees
+
+        const circle_screen_size = Math.tan(circle_size_radians) * distance_from_screen * 10 // actual circle size in mm
+        const fixation_offset_screen_size = Math.tan(fixation_offset_radians) * distance_from_screen * 10 // actual fixation cross offset in mm
+
+        const circle_size_in_pixel = Math.round(circle_screen_size * screen_vs_ratio_horizontal, 2) // note that the disc needs to be defined along the X and Y axis but as we are displaying a circle both ratios would return the same size
+        const fixation_offset_in_pixel = Math.round(fixation_offset_screen_size * screen_vs_ratio_horizontal, 2)
+
+        var circle_size = circle_size_in_pixel / 2 // as JS uses radius but we want it be the diameter
+        var fixation_offset = fixation_offset_in_pixel
+
+        // fixation cross 
+        if (Math.floor(Math.random() * 2) == 0) { // randomise initial fixation location
+            var initial_fixation_location = "left"
+        } else {
+            var initial_fixation_location = "right"
         };
 
-        self.step = 0;
-		
-        self.drawScene = function(){
-			self.canvas.getContext('2d').clearRect(0, 0, self.canvas.width, self.canvas.height);
+        var fixation_location = initial_fixation_location;
 
-			for (var i=0;i<self.objects.length;i++){
-				self.objects[i].draw(self.canvas, self.step);
-			}
-			self.step+=1;
-            //var ctx = self.canvas.getContext('2d');
-            //ctx.clearRect(0, 0, self.canvas.width, self.canvas.height);
-            //ctx.fillStyle = 'red';
-            //self.x +=20;
-            //ctx.fillRect(self.x, 0, 20, 20);
-            window.requestAnimationFrame(self.drawScene);
-        }
-        ///////////////////////////
-		
-		
-		function Square(name, colourName, dimensions, start, end, duration ) {
-            var self = this;
-            self.colourName = colourName;
-            switch (self.colourName) {
-                case "red":
-                    self.colour = "#FF0000";
-                    break;
-                case "green":
-                    self.colour = "#00FF00";
-                    break;
-                case "blue":
-                    self.colour = "#0000FF";
-                    break;
-                case "black":
-                    self.colour = "#000000";
-                    break;
-                case "hidden":
-                    self.colour = "#FFFFFF";
-                    break;
-                case "purple":
-                    self.colour = "#ec00f0";
-                    break;
+        let fixation_xpos;
+        if (fixation_location == "left") {
+            fixation_xpos = (canvas_centrex) - fixation_offset;
+        } else {
+            fixation_xpos = (canvas_centrex) + fixation_offset;
+        };
+
+        var fixation_ypos = canvas_centrey;
+
+        var phase = "adaptation"; // set to start for real experiment
+        const trials_pre = 180;
+        const trials_adaptation = 160
+
+        //development functions (check all false when running experiment) -------------------------------------------------
+
+        const assist_centre = false; // shows where the centre is
+        const assist_grid = false; // shows a grid of the points between which the circles should move
+        const assist_text = false; // labels the circles to be able to better differentiate them
+
+        //-----------------------------------------------------------------------------------------------------------------
+
+        function onShow() { //define variables here
+
+            const Circles1 = new CollisionCircles(canvas_centrex, canvas_centrey, circle_size, circle_colour, fixation_offset, circles_distance, circles_speed);
+            const FixationCross1 = new FixationCross(fixation_xpos, fixation_ypos, fixation_size, fixation_colour); // think about adding speed here
+            const Response1 = new ResponseRequest()
+
+            this.Circles = Circles1;
+            this.FixationCross = FixationCross1;
+            this.Response = Response1;
+            window.requestAnimationFrame(this.drawScene);
+        };
+
+        this.drawScene = function () { //play the animation here   
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (phase == "start") {
+                instructions("Press SPACE when you are ready to begin the experiment.")
+
+                onkeydown = () => {
+                    if (event.key === " ") {
+                        phase = "main instructions"
+                    };
+                };
+            };
+
+            if (phase == "main instructions") {
+                instructions("This is where the main instructions go.");
+                instructions_continue();
+
+                onkeydown = () => {
+                    if (event.key === " ") {
+                        phase = "training"
+                    };
+                };
+            };
+
+            if (phase == "training") {
+                instructions("Training tasks go here. (Not implemented yet.)")
+                instructions_continue();
+
+                onkeydown = () => {
+                    if (event.key === " ") {
+                        phase = "instructions pre"
+                    };
+                };
+            };
+
+            if (phase == "instructions pre") {
+                instructions("Instructions for the pre-daptation phase.")
+                instructions_continue();
+
+                onkeydown = () => {
+                    if (event.key === " ") {
+                        phase = "phase pre"
+                    };
+                };
+            };
+
+            if (phase == "phase pre") {
+
+                if (this.Circles.trial_number < trials_pre + 1) { //need to add 1 so all animations are completed    
+                    console.log(this.Circles.trial_number)
+                    this.FixationCross.draw()
+                    this.Circles.draw()
+                    this.Circles.playanimation(this.FixationCross.xpos, 0, getRandomIntInclusive(0, 360)) // randomised at the moment for testing
+                };
+            };
+
+            if (phase == "adaptation") {
+                // move fixation cross to opposite fixation location
+                if (this.FixationCross.has_moved == false) {
+                    this.FixationCross.draw();
+                    this.FixationCross.move(fixation_cross_speed);
+                };
+
+                if (this.FixationCross.has_moved == true) {
+                    this.FixationCross.draw();
+                    this.Circles.draw();
+                    this.Circles.playanimation(this.FixationCross.rec1x, 0, getRandomIntInclusive(0, 360))
+                    
+                }
+
+                // repeat movement x number of times 
+
+
             }
 
-            self.name = name;
-            self.dimensions = dimensions;
+            if (phase == "test") {
 
-            self.startPosition = start;
-            self.finalPosition = end;
-            self.moveAt = 0;
-            self.movedAt =-1;//the time it actually moved
+                this.FixationCross.draw()
+                this.FixationCross.colour = "#0cff0c"
+                console.log(this.Response.response_list)
 
-            self.duration = duration;
+                this.Response.awaitresponse("test")
 
-            self.animationTimer;
-
-            self.pixelsPerStep;
+            }
 
 
-            self.draw = function (canvas, step) {
-                myStep = Math.max(0, step - self.moveAt);
-                var ctx = canvas.getContext("2d");
-                ctx.fillStyle = self.colour;
-                
-                if(myStep<self.duration) {
-                    self.position[0] = self.startPosition[0] + self.pixelsPerStep[0] * myStep;
-                    self.position[1] = self.startPosition[1] + self.pixelsPerStep[1] * myStep;
-                }
-                else{
-                    self.position[0] = self.finalPosition[0];
-                    self.position[1] = self.finalPosition[1];
-                }
+            // development functions (leave as is) ---------------------------------------------------------------------
 
-                ctx.fillRect(self.position[0],  self.position[1], self.dimensions[0], self.dimensions[1]);
-
-                if(self.movedAt ===-1 && myStep>0) {
-                    self.movedAt = step;
-                    // console.log(self.name + ' moved at ' + self.movedAt);
-                }
-
+            if (assist_centre == true) { // might not show the centre perfectly as needs to account for radius/diameter affecting x/y, is only a rough guide
+                ctx.beginPath();
+                ctx.fillStyle = "white";
+                ctx.arc(canvas_centrex, canvas_centrey, 10, 0, 2 * Math.PI);
+                ctx.fill();
             };
 
-            self.reset = function(){
-                self.movedAt=-1;
-                self.position = self.startPosition.slice();
-                self.pixelsPerStep = [(self.finalPosition[0] - self.startPosition[0]) / self.duration, (self.finalPosition[1] - self.startPosition[1]) / self.duration];
+            if (assist_grid == true) {
+                ctx.beginPath();
+                ctx.fillStyle = "green";
+                ctx.arc(Circles.startx, Circles.starty, 10, 0, 2 * Math.PI);
+                ctx.fill();
 
+                ctx.beginPath();
+                ctx.fillStyle = "#ff0000";
+                ctx.arc(Circles.centrex, Circles.centrey, 10, 0, 2 * Math.PI);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.fillStyle = "orange";
+                ctx.arc(Circles.endx, Circles.endy, 10, 0, 2 * Math.PI);
+                ctx.fill();
             };
-			self.reset();
-			
+
+            if (assist_text == true) {
+                ctx.fillStyle = "green";
+                ctx.fillText("1", Circles.circle1x, Circles.circle1y);
+                ctx.fillStyle = "orange";
+                ctx.fillText("2", Circles.circle2x, Circles.circle2y);
+            };
+
+            window.requestAnimationFrame(this.drawScene)
+
+        };
+
+        // Functions below ---------------------------------------------------------------------------------
+
+        function CollisionCircles(xpos, ypos, size, colour, offset, distance, speed) {
+            this.xpos = xpos; //should be relative to fixation cross
+            this.ypos = ypos;
+
+            this.size = size;
+            this.colour = colour;
+            this.offset = offset;
+
+            this.distance = distance; //should probably be based on visual degrees
+
+            this.speed = speed;
+
+            this.phase = "position";
+            this.repositioned = false;
+
+            this.trial_number = 0;
+
+            this.position = function (fixationxpos, overlap, angle) {
+
+                this.angle = angle;
+                this.radian = this.angle * (Math.PI / 180);
+                this.overlap = overlap;
+
+                this.centrex = fixationxpos - this.offset; // to make animation respective to the fixation cross
+                // will change whether left or right, need to add function here
+                this.centrey = this.ypos; // does not change
+
+                this.startx = this.centrex - Math.cos(this.radian) * this.distance; // start and end are relative to the collision centre so only the centre needs to be changed
+                this.starty = this.centrey + Math.sin(this.radian) * this.distance;
+
+                this.endx = this.centrex + Math.cos(this.radian) * this.distance; // also relative to the rest so should be fine like this
+                this.endy = this.centrey - Math.sin(this.radian) * this.distance;
+
+                this.circle1x = this.startx;
+                this.circle1y = this.starty;
+
+                this.circle2x = this.centrex - Math.cos(this.radian) * (this.overlap); //multiply by size of the circle
+                this.circle2y = this.centrey + Math.sin(this.radian) * (this.overlap);
+
+                this.trial_number++;
+
+                this.repositioned = true;
+                this.phase = "start";
+            };
+
+            this.draw = function () {
+                ctx.beginPath();
+                ctx.fillStyle = this.colour;
+                ctx.arc(this.circle1x, this.circle1y, this.size, 0, 2 * Math.PI);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.fillStyle = this.colour;
+                ctx.arc(this.circle2x, this.circle2y, this.size, 0, 2 * Math.PI);
+                ctx.fill();
+            };
+
+            this.movecircle1tocentre = function () {
+
+                var distanceX = Math.abs(this.circle1x - this.centrex);
+                var distanceY = Math.abs(this.circle1y - this.centrey);
+
+                if (distanceX > 0.1 || distanceY > 0.1) {
+                    this.circle1x = this.circle1x + Math.cos(this.radian) * this.speed;
+                    this.circle1y = this.circle1y - Math.sin(this.radian) * this.speed;
+                } else {
+                    this.phase = "centre";
+                };
+            };
+
+            this.movecircle2toend = function () {
+
+                var distanceX = Math.abs(this.circle2x - this.endx)
+                var overX = this.size * Math.abs(Math.cos(this.radian)) * (this.overlap)
+                var distanceY = Math.abs(this.circle2y - this.endy)
+                var overY = this.size * Math.abs(Math.sin(this.radian)) * (this.overlap)
+
+                if (distanceX > (0.1 + overX) || distanceY > (0.1 + overY)) {
+                    this.circle2x = this.circle2x + Math.cos(this.radian) * this.speed;
+                    this.circle2y = this.circle2y - Math.sin(this.radian) * this.speed;
+                } else {
+                    this.phase = "end";
+                };
+            };
+
+            this.reset = function () {
+
+                this.respositioned = false;
+                this.phase = "position";
+            };
+
+            this.playanimation = function (fixationxpos, overlap, angle) {
+
+                if (this.phase == "position") {
+                    this.position(fixationxpos, overlap, angle)
+                }
+                if (this.phase == "start") {
+                    this.movecircle1tocentre();
+                };
+                if (this.phase == "centre") {
+                    this.movecircle2toend();
+                };
+                if (this.phase == "end") {
+                    this.reset();
+                };
+            };
+        };
+
+        function FixationCross(xpos, ypos, size, colour) {
+            this.xpos = xpos;
+            this.ypos = ypos;
+            this.size = size;
+            this.colour = colour;
+
+            this.has_moved = false
+
+            this.xpos_left = canvas_centrex - fixation_offset;
+            this.xpos_right = canvas_centrex + fixation_offset;
+
+            this.rec1sizex = this.size; // defines the sizes, needs to be done via two rectangles, hence they have mirrored dimensions
+            this.rec1sizey = this.size / 4;
+            this.rec2sizex = this.size / 4;
+            this.rec2sizey = this.size;
+
+            this.rec1x_left = this.xpos_left - this.rec1sizex / 2; // pre-define locations to change it easier later
+            this.rec1x_right = this.xpos_right - this.rec1sizex / 2;
+            this.rec2x_left = this.xpos_left - this.rec2sizex / 2;
+            this.rec2x_right = this.xpos_right - this.rec2sizex / 2;
+
+            if (initial_fixation_location == "left") { //decide initial location based on randomised left/right appearance 
+                this.rec1x = this.rec1x_left;
+                this.rec2x = this.rec2x_left;
+            } else {
+                this.rec1x = this.rec1x_right;
+                this.rec2x = this.rec2x_right;
+            };
+
+            this.current_location = initial_fixation_location;
+
+            this.rec1y = this.ypos - this.rec1sizey / 2; // in this version it never changes 
+            this.rec2y = this.ypos - this.rec2sizey / 2;
 
 
-        }
+            this.draw = function (canvas) {
+                ctx.fillStyle = this.colour;
+                ctx.fillRect(this.rec1x, this.rec1y, this.rec1sizex, this.rec1sizey);
+                ctx.fillRect(this.rec2x, this.rec2y, this.rec2sizex, this.rec2sizey);
+            };
 
-      
+            this.move = function (speed) {
+
+                var speed = speed; //at the moment in pixels
+
+                if (this.current_location == "left") {
+                    if (this.rec1x < this.rec1x_right) { // defined location here via rec1 but can also be defined via rec2, as they move simultaneously does not matter
+                        this.rec1x = this.rec1x + speed
+                        this.rec2x = this.rec2x + speed
+                    } else {
+                        this.rec1x = this.rec1x_right;
+                        this.rec2x = this.rec2x_right;
+                        this.has_moved = true;
+                    };
+                };
+
+                if (this.current_location == "right") {
+                    if (this.rec1x > this.rec1x_left) {
+                        this.rec1x = this.rec1x - speed
+                        this.rec2x = this.rec2x - speed
+                    } else {
+                        this.rec1x = this.rec1x_left;
+                        this.rec2x = this.rec2x_left;
+                        this.has_moved = true;
+                    };
+                };
+            };
+        };
+
+        function ResponseRequest() {
+
+            this.text = "Please rate the event.";
+
+            this.xpos = canvas_centrex; // does not change as we want it centred
+            this.ypos = canvas_centrey - canvas_height * 0.1; // adjusted to be slightly higher than the fixation cross to not obstruct the view
+
+            this.response_list = []
+
+            this.display = function () {
+                ctx.font = "30px Arial"; //currently uses the same font and colour as for instructions 
+                ctx.fillStyle = "white";
+
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+
+                ctx.fillText(this.text, this.xpos, this.ypos);
+            };
+
+            this.awaitresponse = function (trial_parameters) {
+
+                this.display();
+
+                onkeydown = () => {
+                    if (event.key === "d") {
+                        this.response_list.push("launch");
+                    };
+                    if (event.key === "k") {
+                        this.response_list.push("pass");
+                    };
+                }
+            }
+
+        };
+
+
+
+
+        // all instructions go here ---------------------------------------------------------------------------------------------------------
+
+        var text_font = "30px Arial"; // text font and colour for all text Circles
+        var text_colour = "white";
+        var text_padding = 200; // size of the padding to the left and right side of text boxes (assuming text boxes are centred)
+        var text_height = 40; // height of text line breaks
+
+        // Function for wrapping text, courtesy of: https://fjolt.com/article/html-canvas-how-to-wrap-text
+        // @description: wrapText wraps HTML canvas text onto a canvas of fixed width
+        // @param ctx - the context for the canvas we want to wrap text on
+        // @param text - the text we want to wrap.
+        // @param x - the X starting point of the text on the canvas.
+        // @param y - the Y starting point of the text on the canvas.
+        // @param maxWidth - the width at which we want line breaks to begin - i.e. the maximum width of the canvas.
+        // @param lineHeight - the height of each line, so we can space them below each other.
+        // @returns an array of [ lineText, x, y ] for all lines
+        const wrapText = function (ctx, text, x, y, maxWidth, lineHeight) {
+            // First, start by splitting all of our text into words, but splitting it into an array split by spaces
+            let words = text.split(' ');
+            let line = ''; // This will store the text of the current line
+            let testLine = ''; // This will store the text when we add a word, to test if it's too long
+            let lineArray = []; // This is an array of lines, which the function will return
+
+            // Lets iterate over each word
+            for (var n = 0; n < words.length; n++) {
+                // Create a test line, and measure it..
+                testLine += `${words[n]} `;
+                let metrics = ctx.measureText(testLine);
+                let testWidth = metrics.width;
+                // If the width of this test line is more than the max width
+                if (testWidth > maxWidth && n > 0) {
+                    // Then the line is finished, push the current line into "lineArray"
+                    lineArray.push([line, x, y]);
+                    // Increase the line height, so a new line is started
+                    y += lineHeight;
+                    // Update line and test line to use this word as the first word on the next line
+                    line = `${words[n]} `;
+                    testLine = `${words[n]} `;
+                }
+                else {
+                    // If the test line is still less than the max width, then add the word to the current line
+                    line += `${words[n]} `;
+                }
+                // If we never reach the full max width, then there is only one line.. so push it into the lineArray so we return something
+                if (n === words.length - 1) {
+                    lineArray.push([line, x, y]);
+                }
+            }
+            // Return the line array
+            return lineArray;
+        };
+
+        // note, might be worthwhile adding an option to specify whether text should be centred or starting from the top for when instructions are very long
+        function instructions(txt) {
+
+            this.text = txt;
+
+            ctx.font = text_font;
+            ctx.fillStyle = text_colour;
+
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            // we pass in ctx, text, x, y, maxWidth, lineHeight to wrapText()
+            let wrappedText = wrapText(ctx, this.text, canvas_centrex, canvas_centrey, canvas_width - text_padding, text_height);
+
+            wrappedText.forEach(function (item) {
+                // item[0] is the text
+                // item[1] is the x coordinate to fill the text at
+                // item[2] is the y coordinate to fill the text at
+                ctx.fillText(item[0], item[1], item[2]);
+            });
+        };
+
+        function instructions_continue() { // fixed instructions to display a continue message at the bottom of the screen
+
+            this.text = "Press SPACE to continue.";
+
+            ctx.font = text_font;
+            ctx.fillStyle = text_colour;
+
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            ctx.fillText(this.text, canvas_centrex, canvas_height - text_padding);
+        };
+
+        function getRandomIntInclusive(min, max) {
+            const minCeiled = Math.ceil(min);
+            const maxFloored = Math.floor(max);
+            return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled);
+        };
+
     </script>
-
 </body>
+
 </html>
