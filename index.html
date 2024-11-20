@@ -86,9 +86,25 @@
 
         var fixation_ypos = canvas_centrey;
 
-        var phase = "adaptation"; // set to start for real experiment
+        var phase = "pre"; //phase to run, set to start for real experiment
+
+        const block_size = 18; //traditionally a block should consist of 18 trials, 9 left and 9 right
+        const n_blocks = 10; //in direct replications there should be 10 trials
+        const overlap_increments = 0.125; //increments of overlap (overlaps ranges between 0 and 1)
+
         const trials_pre = 180;
-        const trials_adaptation = 160
+        const trials_adaptation = 640;
+        const trials_post = 180;
+
+        //generate trials here
+        const angles_pre = genAngles(trials_pre);
+        const angles_adaptation = genAngles(trials_adaptation);
+        const angles_post = genAngles(trials_post);
+
+        const dataStructurePractice = compileTrialStructure(overlap_increments, 1, block_size) //one block for the practice trials only 
+        const dataStructurePre = compileTrialStructure(overlap_increments, n_blocks, block_size)
+        const dataStructurePost = compileTrialStructure(overlap_increments, n_blocks, block_size) //repeat rather than copy to ensure randomisation
+
 
         //development functions (check all false when running experiment) -------------------------------------------------
 
@@ -114,7 +130,7 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (phase == "start") {
-                instructions("Press SPACE when you are ready to begin the experiment.")
+                instructions("Press SPACE when you are ready to begin the experiment."); //add the text in quotation marks or alternatively via a link to a separate txt file
 
                 onkeydown = () => {
                     if (event.key === " ") {
@@ -123,19 +139,31 @@
                 };
             };
 
-            if (phase == "main instructions") {
-                instructions("This is where the main instructions go.");
-                instructions_continue();
+            if (phase == "main instructions") { //might want to add a red fixation cross again here as an example but not included yet, there are now also plenty of examples which may make that redundant
+                instructions("This is where the main instructions go."); //add the text in quotation marks or alternatively via a link to a separate txt file
+                instructions_continue(); // this is a fixed set of instructions on which key to press to continue displayed at the bottom of the screen
 
                 onkeydown = () => {
                     if (event.key === " ") {
                         phase = "training"
                     };
                 };
+
+                onkeydown = () => {
+                    if (event.key === "d") {
+                        //play a slow launch example
+                    };
+                };
+
+                onkeydown = () => {
+                    if (event.key === "k") {
+                        //play a slow launch example
+                    };
+                };
             };
 
             if (phase == "training") {
-                instructions("Training tasks go here. (Not implemented yet.)")
+                instructions("Training tasks go here.")
                 instructions_continue();
 
                 onkeydown = () => {
@@ -158,7 +186,7 @@
 
             if (phase == "phase pre") {
 
-                if (this.Circles.trial_number < trials_pre + 1) { //need to add 1 so all animations are completed    
+                while (this.Circles.trial_number < trials_pre + 1) { //need to add 1 so all animations are completed    
                     console.log(this.Circles.trial_number)
                     this.FixationCross.draw()
                     this.Circles.draw()
@@ -177,7 +205,7 @@
                     this.FixationCross.draw();
                     this.Circles.draw();
                     this.Circles.playanimation(this.FixationCross.rec1x, 0, getRandomIntInclusive(0, 360))
-                    
+
                 }
 
                 // repeat movement x number of times 
@@ -187,11 +215,6 @@
 
             if (phase == "test") {
 
-                this.FixationCross.draw()
-                this.FixationCross.colour = "#0cff0c"
-                console.log(this.Response.response_list)
-
-                this.Response.awaitresponse("test")
 
             }
 
@@ -330,7 +353,7 @@
 
                 if (this.phase == "position") {
                     this.position(fixationxpos, overlap, angle)
-                }
+                };
                 if (this.phase == "start") {
                     this.movecircle1tocentre();
                 };
@@ -542,6 +565,106 @@
             const maxFloored = Math.floor(max);
             return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled);
         };
+
+        //functions for creating trials
+
+        function genAngles(n_angles) { //generates of semi-random list of angles with as little repetition as possible 
+            var angles = [];
+
+            var sets_to_run = Math.floor(n_angles / 360);
+            console.log("sets to run " + sets_to_run)
+            var remainder = n_angles - (360 * sets_to_run);
+            console.log("remainder of " + remainder)
+
+            while (angles.length < remainder) {
+                var angle = getRandomIntInclusive(0, 360);
+                if (!(angle in angles)) {
+                    angles.push(angle);
+                };
+            };
+
+            if (sets_to_run > 0) {
+                for (let sets = 0; sets < sets_to_run; sets++) {
+                    var set = angles360();
+                    for (let items = 0; items < set.length; items++) {
+                        angles.push(set[items]);
+                    };
+                };
+            };
+            return angles;
+        };
+
+        function angles360() { //generates a random, non-repetative list of 360 angles
+            var angles = [];
+            while (angles.length < 360) {
+                var angle = getRandomIntInclusive(0, 360);
+                if (!(angle in angles)) {
+                    angles.push(angle);
+                };
+            };
+            return angles;
+        };
+
+        function generateRangeOverlap(increments) { //generate a range of overlap
+            let sequence = [0];
+            let n = 1 / increments;
+            for (let i = 0; i < n; i++) {
+                sequence.push(sequence[sequence.length - 1] + increments);
+            }
+            return sequence;
+        };
+
+        function generateRangeLocation(blockSize) {
+            if (blockSize % 2 !== 0) {
+                return "The block size is not even so cannot run the experiment!";
+            };
+
+            let positions = [];
+            while (positions.length < blockSize) {
+                if (positions.length < blockSize / 2) {
+                    positions.push("left");
+                } else {
+                    positions.push("right");
+                };
+            };
+
+            return positions;
+        };
+
+        function compileTrialStructure(increments, nBlocks, blockSize) {
+            var trialDict = {};
+
+            for (let n = 0; n < nBlocks; n++) { //repeat the following for each block of trials
+                var positions = generateRangeLocation(blockSize);
+                var rangeOverlapLeft = generateRangeOverlap(increments);
+                var rangeOverlapRight = rangeOverlapLeft.slice();
+
+                for (let i = 0 + ((rangeOverlapLeft.length * 2) * n); i < blockSize + ((rangeOverlapLeft.length * 2) * n); i++) {
+
+                    var locationIndex = Math.floor(Math.random() * positions.length);
+                    var location = positions[locationIndex];
+                    positions.splice(locationIndex, 1);
+
+                    if (location === "left") {
+                        var overlapIndex = Math.floor(Math.random() * rangeOverlapLeft.length);
+                        var overlap = rangeOverlapLeft[overlapIndex];
+                        rangeOverlapLeft.splice(overlapIndex, 1);
+                    };
+
+                    if (location === "right") {
+                        var overlapIndex = Math.floor(Math.random() * rangeOverlapRight.length);
+                        var overlap = rangeOverlapRight[overlapIndex];
+                        rangeOverlapRight.splice(overlapIndex, 1);
+                    };
+
+                    trialDict[i] = { overlap: overlap, location: location };
+                };
+            };
+
+            return trialDict;
+        };
+
+
 
     </script>
 </body>
