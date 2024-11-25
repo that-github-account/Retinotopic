@@ -81,7 +81,7 @@
         const n_blocks = 10; //in direct replications there should be 10 trials
         const overlap_increments = 0.125; //increments of overlap (overlaps ranges between 0 and 1)
 
-        const trials_pre = 180;
+        const trials_pre = 10;
         const trials_adaptation = 640;
         const trials_post = 180;
 
@@ -94,7 +94,7 @@
         const dataStructurePre = compileTrialStructure(overlap_increments, n_blocks, block_size)
         const dataStructurePost = compileTrialStructure(overlap_increments, n_blocks, block_size) //repeat rather than copy to ensure randomisation
 
-        console.log(dataStructurePre)
+
 
 
         //development functions (check all false when running experiment) -------------------------------------------------
@@ -198,35 +198,51 @@
 
 
             }
-            
+
 
             if (phase == "test") {
-                this.FixationCross.draw();
-                if (!this.FixationCross.has_moved) {
+
+                var phaseStart = new Date().getTime(); // record start of phase in milliseconds, need to ensure this is only called once
+
+                this.FixationCross.draw(); // constnatly draw fixation cross
+                
+                if (!this.FixationCross.has_moved) { // move fixation cross if needed 
                     this.FixationCross.move();
                 } else {
 
-                    if (this.Circles.trial_number < angles_pre.length) {
-                        if (!this.Circles.repositioned) {
+                    if (this.Circles.trial_number-1 < angles_pre.length) { // loop iterations for the number of trials
+                        if (!this.Circles.repositioned && !this.Response.requireResponse) {
 
                             var trialSettings = dataStructurePre[this.Circles.trial_number];
-
                             this.Circles.position(this.FixationCross.rec1x, trialSettings["location"], trialSettings["overlap"], angles_pre[this.Circles.trial_number]);
-                        } else {
-                            this.Circles.playanimation()
-                        }
-                    } else {
-                        phase = "adaptation";
-                        this.Circles.trial_number = 0;
+                            this.Response.requireResponse = true;
 
-                    }
-                }
-            }
+                        } else if (this.Circles.repositioned && this.Response.requireResponse) {
+                            this.Circles.playanimation();
+
+                        } else if (!this.Circles.repositioned && this.Response.requireResponse) {
+
+                            this.Response.fixationOverlay(this.FixationCross.rec1x, this.FixationCross.rec1y, this.FixationCross.rec1sizex, this.FixationCross.rec1sizey, this.FixationCross.rec2x, this.FixationCross.rec2y, this.FixationCross.rec2sizex, this.FixationCross.rec2sizey )
+                            this.Response.awaitresponse();
+                        };
+
+                    } else { // reset everything and move to next phase once all trials have run
+                        // move to next phase, phase = "adaptation"
+                        // reset trial counter, this.Circles.trial_number = 0
+                        // reset fixation cross, this.FixationCross.has_moved = false; may not always be required
+                        // repositioning and require response are reset after every trial
+
+                        var phaseEnd = new Date().getTime(); // record end time of phase in milliseconds
+                        var phaseDuration = phaseEnd - phaseStart; // get phase duration in milliseconds
+                        
+                    };
+                };
+            };
 
 
             // development functions (leave as is) ---------------------------------------------------------------------
 
-            if (assist_centre == true) { // might not show the centre perfectly as needs to account for radius/diameter affecting x/y, is only a rough guide
+            if (assist_centre == true) { 
                 ctx.beginPath();
                 ctx.fillStyle = "white";
                 ctx.arc(canvas_centrex, canvas_centrey, 10, 0, 2 * Math.PI);
@@ -406,7 +422,7 @@
             this.current_location = this.initialLocation;
             this.has_moved = false;
 
-            this.draw = function (canvas) {
+            this.draw = function () {
                 ctx.fillStyle = this.colour;
                 ctx.fillRect(this.rec1x, this.rec1y, this.rec1sizex, this.rec1sizey);
                 ctx.fillRect(this.rec2x, this.rec2y, this.rec2sizex, this.rec2sizey);
@@ -449,6 +465,8 @@
 
             this.response_list = []
 
+            this.requireResponse = false;
+
             this.display = function () {
                 ctx.font = "30px Arial"; //currently uses the same font and colour as for instructions 
                 ctx.fillStyle = "white";
@@ -459,6 +477,12 @@
                 ctx.fillText(this.text, this.xpos, this.ypos);
             };
 
+            this.fixationOverlay = function (rec1x, rec1y, rec1sizex, rec1sizey, rec2x, rec2y, rec2sizex, rec2sizey) {
+                ctx.fillStyle = "green";
+                ctx.fillRect(rec1x, rec1y, rec1sizex, rec1sizey);
+                ctx.fillRect(rec2x, rec2y, rec2sizex, rec2sizey);
+            };
+
             this.awaitresponse = function (trial_parameters) {
 
                 this.display();
@@ -466,9 +490,11 @@
                 onkeydown = () => {
                     if (event.key === "d") {
                         this.response_list.push("launch");
+                        this.requireResponse = false;
                     };
                     if (event.key === "k") {
                         this.response_list.push("pass");
+                        this.requireResponse = false;
                     };
                 }
             }
