@@ -39,12 +39,12 @@
 
         var circle_size = 20; // this is probably deprecated, will remove soon, adjust size as visual degrees if necessary
         var circle_colour = "#808080";
-        var circles_speed = 5;
+        var circles_speed = 10;
         var circles_distance = 100; // just a random distance atm
 
         var fixation_size = 40; // define youself as visual degrees are not given in previous publications  
         var fixation_colour = "#ff0000";
-        var fixation_cross_speed = 5;
+        var fixation_speed = 5;
 
         // everything visual degrees 
 
@@ -75,18 +75,7 @@
             var initial_fixation_location = "right"
         };
 
-        var fixation_location = initial_fixation_location;
-
-        let fixation_xpos;
-        if (fixation_location == "left") {
-            fixation_xpos = (canvas_centrex) - fixation_offset;
-        } else {
-            fixation_xpos = (canvas_centrex) + fixation_offset;
-        };
-
-        var fixation_ypos = canvas_centrey;
-
-        var phase = "pre"; //phase to run, set to start for real experiment
+        var phase = "test"; //phase to run, set to start for real experiment
 
         const block_size = 18; //traditionally a block should consist of 18 trials, 9 left and 9 right
         const n_blocks = 10; //in direct replications there should be 10 trials
@@ -105,6 +94,8 @@
         const dataStructurePre = compileTrialStructure(overlap_increments, n_blocks, block_size)
         const dataStructurePost = compileTrialStructure(overlap_increments, n_blocks, block_size) //repeat rather than copy to ensure randomisation
 
+        console.log(dataStructurePre)
+
 
         //development functions (check all false when running experiment) -------------------------------------------------
 
@@ -116,8 +107,8 @@
 
         function onShow() { //define variables here
 
-            const Circles1 = new CollisionCircles(canvas_centrex, canvas_centrey, circle_size, circle_colour, fixation_offset, circles_distance, circles_speed);
-            const FixationCross1 = new FixationCross(fixation_xpos, fixation_ypos, fixation_size, fixation_colour); // think about adding speed here
+            const Circles1 = new CollisionCircles(circle_size, circle_colour, fixation_offset, circles_distance, circles_speed);
+            const FixationCross1 = new FixationCross(canvas_centrex, canvas_centrey, fixation_size, fixation_colour, fixation_offset, initial_fixation_location, fixation_speed); // think about adding speed here
             const Response1 = new ResponseRequest()
 
             this.Circles = Circles1;
@@ -142,24 +133,19 @@
             if (phase == "main instructions") { //might want to add a red fixation cross again here as an example but not included yet, there are now also plenty of examples which may make that redundant
                 instructions("This is where the main instructions go."); //add the text in quotation marks or alternatively via a link to a separate txt file
                 instructions_continue(); // this is a fixed set of instructions on which key to press to continue displayed at the bottom of the screen
-
                 onkeydown = () => {
+                    console.log(1)
                     if (event.key === " ") {
                         phase = "training"
-                    };
+                    } else if (event.key === "d") {
+                        this.Circles.draw();
+                        this.Circles.playanimation(canvas_centrex, 0, 45);
+                    } else {
+                        this.Circles.draw();
+                        this.Circles.playanimation(canvas_centrex, 1, 45);
+                    }
                 };
 
-                onkeydown = () => {
-                    if (event.key === "d") {
-                        //play a slow launch example
-                    };
-                };
-
-                onkeydown = () => {
-                    if (event.key === "k") {
-                        //play a slow launch example
-                    };
-                };
             };
 
             if (phase == "training") {
@@ -198,7 +184,7 @@
                 // move fixation cross to opposite fixation location
                 if (this.FixationCross.has_moved == false) {
                     this.FixationCross.draw();
-                    this.FixationCross.move(fixation_cross_speed);
+                    this.FixationCross.move();
                 };
 
                 if (this.FixationCross.has_moved == true) {
@@ -212,10 +198,29 @@
 
 
             }
+            
 
             if (phase == "test") {
+                this.FixationCross.draw();
+                if (!this.FixationCross.has_moved) {
+                    this.FixationCross.move();
+                } else {
 
+                    if (this.Circles.trial_number < angles_pre.length) {
+                        if (!this.Circles.repositioned) {
 
+                            var trialSettings = dataStructurePre[this.Circles.trial_number];
+
+                            this.Circles.position(this.FixationCross.rec1x, trialSettings["location"], trialSettings["overlap"], angles_pre[this.Circles.trial_number]);
+                        } else {
+                            this.Circles.playanimation()
+                        }
+                    } else {
+                        phase = "adaptation";
+                        this.Circles.trial_number = 0;
+
+                    }
+                }
             }
 
 
@@ -258,46 +263,44 @@
 
         // Functions below ---------------------------------------------------------------------------------
 
-        function CollisionCircles(xpos, ypos, size, colour, offset, distance, speed) {
-            this.xpos = xpos; //should be relative to fixation cross
-            this.ypos = ypos;
-
+        function CollisionCircles(size, colour, offset, distance, speed) {
             this.size = size;
             this.colour = colour;
             this.offset = offset;
-
-            this.distance = distance; //should probably be based on visual degrees
-
+            this.distance = distance; // distance between circles, currently in pixels
             this.speed = speed;
 
-            this.phase = "position";
+            this.phase = "position"; // start with requiering positioning
             this.repositioned = false;
 
-            this.trial_number = 0;
+            this.trial_number = 0; // counter to keep track of trials
 
-            this.position = function (fixationxpos, overlap, angle) {
+            this.position = function (fixationxpos, fixationRelativeLocation, overlap, angle) {
 
-                this.angle = angle;
-                this.radian = this.angle * (Math.PI / 180);
+                this.radian = angle * (Math.PI / 180); // conver the angle to radians because JS prefers radians
                 this.overlap = overlap;
 
-                this.centrex = fixationxpos - this.offset; // to make animation respective to the fixation cross
-                // will change whether left or right, need to add function here
-                this.centrey = this.ypos; // does not change
+                if (fixationRelativeLocation === "left") { // set location relative to either the left or right of the fixation cross
+                    this.centrex = fixationxpos - this.offset;
+                } else {
+                    this.centrex = fixationxpos + this.offset;
+                }
+
+                this.centrey = canvas_centrey; // does not change
 
                 this.startx = this.centrex - Math.cos(this.radian) * this.distance; // start and end are relative to the collision centre so only the centre needs to be changed
                 this.starty = this.centrey + Math.sin(this.radian) * this.distance;
 
-                this.endx = this.centrex + Math.cos(this.radian) * this.distance; // also relative to the rest so should be fine like this
+                this.endx = this.centrex + Math.cos(this.radian) * this.distance;
                 this.endy = this.centrey - Math.sin(this.radian) * this.distance;
 
-                this.circle1x = this.startx;
-                this.circle1y = this.starty;
+                this.circle1x = this.startx - Math.cos(this.radian) * (this.size * 2); // set initial location for the first circle
+                this.circle1y = this.starty + Math.sin(this.radian) * (this.size * 2);
 
-                this.circle2x = this.centrex - Math.cos(this.radian) * (this.overlap); //multiply by size of the circle
-                this.circle2y = this.centrey + Math.sin(this.radian) * (this.overlap);
+                this.circle2x = this.centrex - Math.cos(this.radian) * (this.overlap) * (this.size * 2); // set initial location of the second circle
+                this.circle2y = this.centrey + Math.sin(this.radian) * (this.overlap) * (this.size * 2);
 
-                this.trial_number++;
+                this.trial_number++; // increase the trial number every time a new collision is run
 
                 this.repositioned = true;
                 this.phase = "start";
@@ -317,10 +320,10 @@
 
             this.movecircle1tocentre = function () {
 
-                var distanceX = Math.abs(this.circle1x - this.centrex);
-                var distanceY = Math.abs(this.circle1y - this.centrey);
+                var distanceX = Math.abs(this.circle1x - (this.centrex - Math.cos(this.radian) * (this.size * 2)));
+                var distanceY = Math.abs(this.circle1y - (this.centrey + Math.sin(this.radian) * (this.size * 2)));
 
-                if (distanceX > 0.1 || distanceY > 0.1) {
+                if (distanceX > 0.9 || distanceY > 0.9) { // still need to find a fix for this
                     this.circle1x = this.circle1x + Math.cos(this.radian) * this.speed;
                     this.circle1y = this.circle1y - Math.sin(this.radian) * this.speed;
                 } else {
@@ -330,12 +333,10 @@
 
             this.movecircle2toend = function () {
 
-                var distanceX = Math.abs(this.circle2x - this.endx)
-                var overX = this.size * Math.abs(Math.cos(this.radian)) * (this.overlap)
-                var distanceY = Math.abs(this.circle2y - this.endy)
-                var overY = this.size * Math.abs(Math.sin(this.radian)) * (this.overlap)
+                var distanceX = Math.abs(this.circle2x - (this.endx - (Math.cos(this.radian)) * (this.size * 2) * (this.overlap)));
+                var distanceY = Math.abs(this.circle2y - (this.endy + (Math.sin(this.radian)) * (this.size * 2) * (this.overlap)));
 
-                if (distanceX > (0.1 + overX) || distanceY > (0.1 + overY)) {
+                if (distanceX > 0.9 || distanceY > 0.9) {
                     this.circle2x = this.circle2x + Math.cos(this.radian) * this.speed;
                     this.circle2y = this.circle2y - Math.sin(this.radian) * this.speed;
                 } else {
@@ -344,16 +345,14 @@
             };
 
             this.reset = function () {
-
-                this.respositioned = false;
+                this.repositioned = false;
                 this.phase = "position";
             };
 
-            this.playanimation = function (fixationxpos, overlap, angle) {
+            this.playanimation = function () {
 
-                if (this.phase == "position") {
-                    this.position(fixationxpos, overlap, angle)
-                };
+                this.draw()
+
                 if (this.phase == "start") {
                     this.movecircle1tocentre();
                 };
@@ -366,28 +365,37 @@
             };
         };
 
-        function FixationCross(xpos, ypos, size, colour) {
-            this.xpos = xpos;
+        function FixationCross(xpos, ypos, size, colour, offset, initialLocation, speed) {
+
+            this.xpos = xpos; // based on canvas centre 
             this.ypos = ypos;
+
+            this.offset = offset;
+            this.initialLocation = initialLocation;
+
             this.size = size;
             this.colour = colour;
+            this.speed = speed;
 
-            this.has_moved = false
-
-            this.xpos_left = canvas_centrex - fixation_offset;
-            this.xpos_right = canvas_centrex + fixation_offset;
-
-            this.rec1sizex = this.size; // defines the sizes, needs to be done via two rectangles, hence they have mirrored dimensions
+            this.rec1sizex = this.size; // define rectangle sizes to draw a cross
             this.rec1sizey = this.size / 4;
+
             this.rec2sizex = this.size / 4;
             this.rec2sizey = this.size;
 
-            this.rec1x_left = this.xpos_left - this.rec1sizex / 2; // pre-define locations to change it easier later
+            this.xpos_left = this.xpos - this.offset; // define relative location on screen
+            this.xpos_right = this.xpos + this.offset;
+
+            this.rec1x_left = this.xpos_left - this.rec1sizex / 2; // centre rectangles, pre-define locations for ease
             this.rec1x_right = this.xpos_right - this.rec1sizex / 2;
+
             this.rec2x_left = this.xpos_left - this.rec2sizex / 2;
             this.rec2x_right = this.xpos_right - this.rec2sizex / 2;
 
-            if (initial_fixation_location == "left") { //decide initial location based on randomised left/right appearance 
+            this.rec1y = this.ypos - this.rec1sizey / 2; // centre rectangles, y-level never changes 
+            this.rec2y = this.ypos - this.rec2sizey / 2;
+
+            if (this.initialLocation == "left") { // set  initial appearance based on earlier randomisation
                 this.rec1x = this.rec1x_left;
                 this.rec2x = this.rec2x_left;
             } else {
@@ -395,11 +403,8 @@
                 this.rec2x = this.rec2x_right;
             };
 
-            this.current_location = initial_fixation_location;
-
-            this.rec1y = this.ypos - this.rec1sizey / 2; // in this version it never changes 
-            this.rec2y = this.ypos - this.rec2sizey / 2;
-
+            this.current_location = this.initialLocation;
+            this.has_moved = false;
 
             this.draw = function (canvas) {
                 ctx.fillStyle = this.colour;
@@ -407,31 +412,31 @@
                 ctx.fillRect(this.rec2x, this.rec2y, this.rec2sizex, this.rec2sizey);
             };
 
-            this.move = function (speed) {
+            this.move = function () {
 
-                var speed = speed; //at the moment in pixels
-
-                if (this.current_location == "left") {
-                    if (this.rec1x < this.rec1x_right) { // defined location here via rec1 but can also be defined via rec2, as they move simultaneously does not matter
-                        this.rec1x = this.rec1x + speed
-                        this.rec2x = this.rec2x + speed
+                if (!this.has_moved) {
+                    if (this.current_location == "left") {
+                        if (this.rec1x < this.rec1x_right) { // defined location here via rec1 but can also be defined via rec2, as they move simultaneously does not matter
+                            this.rec1x = this.rec1x + this.speed
+                            this.rec2x = this.rec2x + this.speed
+                        } else {
+                            this.rec1x = this.rec1x_right;
+                            this.rec2x = this.rec2x_right;
+                            this.has_moved = true;
+                            this.current_location = "right";
+                        };
                     } else {
-                        this.rec1x = this.rec1x_right;
-                        this.rec2x = this.rec2x_right;
-                        this.has_moved = true;
+                        if (this.rec1x > this.rec1x_left) {
+                            this.rec1x = this.rec1x - this.speed
+                            this.rec2x = this.rec2x - this.speed
+                        } else {
+                            this.rec1x = this.rec1x_left;
+                            this.rec2x = this.rec2x_left;
+                            this.has_moved = true;
+                            this.current_location = "left";
+                        };
                     };
-                };
-
-                if (this.current_location == "right") {
-                    if (this.rec1x > this.rec1x_left) {
-                        this.rec1x = this.rec1x - speed
-                        this.rec2x = this.rec2x - speed
-                    } else {
-                        this.rec1x = this.rec1x_left;
-                        this.rec2x = this.rec2x_left;
-                        this.has_moved = true;
-                    };
-                };
+                }
             };
         };
 
@@ -572,9 +577,8 @@
             var angles = [];
 
             var sets_to_run = Math.floor(n_angles / 360);
-            console.log("sets to run " + sets_to_run)
             var remainder = n_angles - (360 * sets_to_run);
-            console.log("remainder of " + remainder)
+
 
             while (angles.length < remainder) {
                 var angle = getRandomIntInclusive(0, 360);
@@ -627,7 +631,6 @@
                     positions.push("right");
                 };
             };
-
             return positions;
         };
 
@@ -637,9 +640,9 @@
             for (let n = 0; n < nBlocks; n++) { //repeat the following for each block of trials
                 var positions = generateRangeLocation(blockSize);
                 var rangeOverlapLeft = generateRangeOverlap(increments);
-                var rangeOverlapRight = rangeOverlapLeft.slice();
+                var rangeOverlapRight = generateRangeOverlap(increments);
 
-                for (let i = 0 + ((rangeOverlapLeft.length * 2) * n); i < blockSize + ((rangeOverlapLeft.length * 2) * n); i++) {
+                for (let i = 0 + (((1 / increments + 1) * 2) * n); i < blockSize + (((1 / increments + 1) * 2) * n); i++) {
 
                     var locationIndex = Math.floor(Math.random() * positions.length);
                     var location = positions[locationIndex];
