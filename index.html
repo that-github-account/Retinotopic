@@ -75,7 +75,7 @@
             var initial_fixation_location = "right"
         };
 
-        var phase = "post"; //phase to run, set to start for real experiment
+        var phase = "start"; //phase to run, set to start for real experiment
 
         var requireTopUp = false; // leave as is
 
@@ -187,8 +187,6 @@
                         this.Circles.position(this.FixationCross.rec1x, trialSettings["location"], trialSettings["overlap"], anglesPre[this.Circles.trialNumber]);
                         this.Response.requireResponse = true;
 
-                        console.log(this.Circles.trialNumber)
-
                     } else if (this.Circles.repositioned && this.Response.requireResponse) {
                         this.Circles.playanimation();
 
@@ -200,6 +198,7 @@
                 } else { // reset everything and move to next phase once all trials have run
                     phase = "adaptation";
                     this.Circles.trialNumber = 0;
+                    this.Circles.repositioned = false;
 
                     // var phaseEnd = new Date().getTime(); // record end time of phase in milliseconds
                     // var phaseDuration = phaseEnd - phaseStart; // get phase duration in milliseconds
@@ -226,14 +225,14 @@
 
                             this.Circles.position(this.FixationCross.rec1x, adaptationLocation, 0, anglesAdaptation[this.Circles.trialNumber]);
 
-                            console.log(this.Circles.trialNumber)
-
                         } else if (this.Circles.repositioned) {
                             this.Circles.playanimation();
                         };
                     } else {
                         phase = "post";
                         this.Circles.trialNumber = 0;
+                        this.Circles.repositioned = false;
+                        this.Response.requireResponse = false;
                         this.FixationCross.has_moved = false;
                     }
                 };
@@ -248,6 +247,7 @@
                 } else {
 
                     if (this.Circles.trialNumber < anglesPost.length + 1) { // loop iterations for the number of trials
+
                         if (!this.Circles.repositioned && !this.Response.requireResponse && !requireTopUp) {
 
                             var trialSettings = dataStructurePost[this.Circles.trialNumber];
